@@ -13,5 +13,7 @@ let shader_snip = wgsl! {
 
 Not a particularly robust solution.
 
-[ ] - Correct whitespacing
-[ ] - Translate error positions reported by naga to correct locations in Rust source.
+### TODO
+
+- [ ] Correct white spacing
+- [ ] Translate error positions reported by naga to correct locations in Rust source.
