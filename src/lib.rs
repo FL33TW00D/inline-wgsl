@@ -11,6 +11,7 @@ struct Source {
     modified: String,
     column: usize,
     initial_line: Option<usize>,
+    initial_col: Option<usize>,
     line: usize,
 }
 
@@ -25,6 +26,11 @@ impl Source {
         let line = line
             .checked_sub(initial_line)
             .ok_or_else(|| quote_spanned!(span.into() => compile_error!("Invalid line number")))?;
+
+        let initial_col = *self.initial_col.get_or_insert(column);
+        let column = column.checked_sub(initial_col).ok_or_else(
+            || quote_spanned!(span.into() => compile_error!("Invalid column number")),
+        )?;
 
         match line.cmp(&self.line) {
             Ordering::Greater => {
@@ -52,11 +58,11 @@ impl Source {
 
             match &token {
                 TokenTree::Group(x) => {
-                    let (start, end) = match x.delimiter() {
-                        Delimiter::Parenthesis => ("(", ")"),
-                        Delimiter::Brace => ("{{", "}}"),
-                        Delimiter::Bracket => ("[", "]"),
-                        Delimiter::None => ("", ""),
+                    let (start, end, sub) = match x.delimiter() {
+                        Delimiter::Parenthesis => ("(", ")", 1),
+                        Delimiter::Brace => ("{{", "}}", 1),
+                        Delimiter::Bracket => ("[", "]", 1),
+                        Delimiter::None => ("", "", 0),
                     };
                     self.modified.push_str(start);
                     self.column += start.len();
@@ -65,7 +71,7 @@ impl Source {
                     self.add_whitespace(
                         span,
                         end_span.line(),
-                        end_span.column().saturating_sub(end.len()),
+                        end_span.column().saturating_sub(sub),
                     )?;
                     self.modified.push_str(end);
                     self.column += end.len();
@@ -91,12 +97,14 @@ impl Source {
                 TokenTree::Ident(x) => {
                     write!(&mut self.modified, "{}", x).unwrap();
                     let end_span = token.span().unwrap().end();
-                    self.column = end_span.column();
+                    let end_col = end_span.column() - self.initial_col.unwrap_or(0);
+                    self.column = end_col;
                 }
                 _ => {
                     self.modified.push_str(&token.to_string());
                     let end_span = token.span().unwrap().end();
-                    self.column = end_span.column();
+                    let end_col = end_span.column() - self.initial_col.unwrap_or(0);
+                    self.column = end_col;
                 }
             }
         }
@@ -110,6 +118,7 @@ fn inline_wgsl(input: TokenStream) -> Result<TokenStream, TokenStream> {
         modified: "".to_string(),
         column: 0,
         initial_line: None,
+        initial_col: None,
         line: 0,
     };
     let _ = source.add(input);
