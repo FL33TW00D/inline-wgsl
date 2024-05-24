@@ -45,8 +45,7 @@ impl Source {
                     self.modified.push_str(&v.to_string());
 
                     match v_str.as_str() {
-                        "var" | "let" => {
-                            //Invalid if "var" and "let" don't have a space.
+                        "var" | "let" | "fn" => {
                             self.modified.push(' ');
                         }
                         _ => {}
@@ -66,7 +65,7 @@ fn inline_wgsl(input: TokenStream) -> Result<TokenStream, TokenStream> {
     let mut source = Source {
         modified: "".to_string(),
     };
-    let _ = source.add(input.clone());
+    let _ = source.add(input);
     let modified = source.modified;
 
     let quoted = quote! {
