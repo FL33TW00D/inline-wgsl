@@ -122,7 +122,8 @@ fn inline_wgsl(input: TokenStream) -> Result<TokenStream, TokenStream> {
         line: 0,
     };
     let _ = source.add(input);
-    let modified = source.modified;
+    let mut modified = source.modified;
+    modified.push_str("\n");
 
     let quoted = quote! {
         format!(#modified)
