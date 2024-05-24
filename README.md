@@ -11,9 +11,10 @@ let shader_snip = wgsl! {
 };
 ```
 
-Not a particularly robust solution.
+Based heavily off [inline-python](https://github.com/fusion-engineering/inline-python) and the [related blog posts](https://blog.m-ou.se/tags/inline-python/).
+Thanks @m-ou-se!
 
 ### TODO
 
-- [ ] Correct white spacing
+- [x] Correct white spacing
 - [ ] Translate error positions reported by naga to correct locations in Rust source.
