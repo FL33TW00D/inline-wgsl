@@ -5,6 +5,7 @@ use std::fmt::Write;
 use proc_macro::{Span, TokenStream as TokenStream1};
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
+use std::cmp::Ordering;
 
 struct Source {
     modified: String,
@@ -21,25 +22,22 @@ impl Source {
         column: usize,
     ) -> Result<(), TokenStream> {
         let initial_line = *self.initial_line.get_or_insert(line);
-        let line = line.checked_sub(initial_line);
         let line = line
-            .ok_or_else(|| quote_spanned!(span.into() => compile_error!{"Invalid line number"}))?;
-        if line > self.line {
-            while line > self.line {
-                self.modified.push('\n');
-                self.line += 1;
-            }
+            .checked_sub(initial_line)
+            .ok_or_else(|| quote_spanned!(span.into() => compile_error!("Invalid line number")))?;
 
-            for _ in 0..column {
-                self.modified.push(' ');
+        match line.cmp(&self.line) {
+            Ordering::Greater => {
+                self.modified.push_str(&"\n".repeat(line - self.line));
+                self.line = line;
+                self.modified.push_str(&" ".repeat(column));
+                self.column = column;
             }
-
-            self.column = column;
-        } else if line == self.line {
-            while column > self.column {
-                self.modified.push(' ');
-                self.column += 1;
+            Ordering::Equal => {
+                self.modified.push_str(&" ".repeat(column - self.column));
+                self.column = column;
             }
+            _ => {}
         }
 
         Ok(())
@@ -50,12 +48,8 @@ impl Source {
 
         while let Some(token) = tokens.next() {
             let span = token.span().unwrap();
-            let col = span.column();
-            let line = span.line();
-
-            dbg!(&token);
-            dbg!(col, line);
             self.add_whitespace(span, span.line(), span.column())?;
+
             match &token {
                 TokenTree::Group(x) => {
                     let (start, end) = match x.delimiter() {
@@ -82,10 +76,8 @@ impl Source {
                     if x.as_char() == '\'' && x.spacing() == Spacing::Joint {
                         if let Some(TokenTree::Ident(name)) = tokens.next() {
                             let name_str = name.to_string();
-                            self.modified.push('{');
-                            self.modified.push_str(&name_str);
-                            self.modified.push('}');
-                            self.column += name_str.len();
+                            write!(&mut self.modified, "{{{}}}", name_str).unwrap();
+                            self.column += name_str.len() + 1;
                         } else {
                             return Err(quote! {
                                 compile_error!("Expected a templated parameter after single quote.");
@@ -93,8 +85,8 @@ impl Source {
                         };
                     } else {
                         self.modified.push(x.as_char());
+                        self.column += 1;
                     }
-                    self.column += 1;
                 }
                 TokenTree::Ident(x) => {
                     write!(&mut self.modified, "{}", x).unwrap();
