@@ -6,8 +6,9 @@ mod tests {
     #[test]
     pub fn test_for() {
         let reduce_var = 1024;
+        const BLOCK_SIZE: u32 = 128;
         let templated = wgsl! {
-            for(var i: u32 = index; i < 'reduce_var; i += BLOCK_SIZE) {
+            for(var i: u32 = index; i < 'reduce_var; i += 'BLOCK_SIZE) {
                 var val = X[row_start + i];
                 X[row_start + i] = exp(val - maximum) / sum;
             }
