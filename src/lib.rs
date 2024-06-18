@@ -68,11 +68,13 @@ impl Source {
                     self.column += start.len();
                     self.add(x.stream())?;
                     let end_span = token.span().unwrap().end();
-                    self.add_whitespace(
-                        span,
-                        end_span.line(),
-                        end_span.column().saturating_sub(sub),
-                    )?;
+                    let end_col = if end_span.column() > sub {
+                        end_span.column() - sub
+                    } else {
+                        0
+                    };
+
+                    self.add_whitespace(span, end_span.line(), end_col)?;
                     self.modified.push_str(end);
                     self.column += end.len();
                 }
